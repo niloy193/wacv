@@ -4,7 +4,21 @@ import torch.nn.functional as F
 import numpy as np
 import torch
 import sys
+import random
 
+def get_dataset_mean(training_generator):
+    mean = 0.
+    std = 0.
+    nb_samples = 0.
+    for data, _ in training_generator:
+        batch_samples = data.size(0)
+        data = data.view(batch_samples, data.size(1), -1)
+        mean += data.mean(2).sum(0)
+        std += data.std(2).sum(0)
+        nb_samples += batch_samples
+
+    mean /= nb_samples
+    std /= nb_samples
 
 def batch_intersection_union(predict, target, num_class):
     _, predict = torch.max(predict, 1)

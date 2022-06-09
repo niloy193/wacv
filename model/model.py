@@ -11,7 +11,7 @@ class ConSegNet(nn.Module):
     def __init__(self, cfg, inplanes):
         super(ConSegNet, self).__init__()
         self.cfg = cfg
-        self.encoder = timm.create_model(self.cfg['model_params']['encoder'], pretrained= False, features_only=True, out_indices=[4])
+        self.encoder = timm.create_model(self.cfg['model_params']['encoder'], pretrained= True, features_only=True, out_indices=[4])
         self.conv_srm = setup_srm_layer()
         self.encoder_srm = timm.create_model(self.cfg['model_params']['encoder'], pretrained= False, features_only=True, out_indices=[4])
         if self.cfg['global_params']['with_srm'] == True:

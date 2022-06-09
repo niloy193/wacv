@@ -15,9 +15,6 @@ class Dataset(data.Dataset):
         self.list_IDs = list_IDs
         self.labels = labels
         self.cfg = cfg
-
-        self.list_IDs_dir = cfg['dataset_params']['images_dir']
-        self.labels_dir = cfg['dataset_params']['mask_dir']
             
         self.normalize = transforms.Normalize(cfg['dataset_params']['mean'], cfg['dataset_params']['std'])
         self.is_patch = is_patch
@@ -27,7 +24,7 @@ class Dataset(data.Dataset):
 
     def __getitem__(self, index):
         im_size = self.cfg['dataset_params']['im_size']
-        image = cv2.imread(os.path.join(self.list_IDs_dir,self.list_IDs[index]))
+        image = cv2.imread(self.list_IDs[index],1)
         image = cv2.resize(image, (im_size,im_size))
         image = image/255.0
         image = np.moveaxis(image, 2, 0)
@@ -35,7 +32,7 @@ class Dataset(data.Dataset):
         image = torch.from_numpy(image)
         image = self.normalize(image)
     
-        mask = cv2.imread(os.path.join(self.labels_dir, self.labels[index]),0)
+        mask = cv2.imread(self.labels[index],0)
         mask = cv2.resize(mask, (im_size,im_size), interpolation = cv2.INTER_NEAREST)
         mask = mask/255.0
         mask = torch.from_numpy(mask)
@@ -56,31 +53,75 @@ class Dataset(data.Dataset):
 
         return image, mask
 
+def get_file_names(cfg):
+    train_v1 = cfg['dataset_params']['images_dir_v1']
+    mask_v1 = cfg['dataset_params']['mask_dir_v1']
+    train_v2 = cfg['dataset_params']['images_dir_v2']
+    mask_v2 = cfg['dataset_params']['mask_dir_v2']
 
-def train_generator(cfg):
-    image_IDs = open('dataloader/train_images.txt', 'r').read().split('\n')
-    mask_IDs = open('dataloader/train_masks.txt', 'r').read().split('\n')
+    train_IDs = {}
+    mask_IDs = {}
+    test_IDs = {}
+    mask_test_IDs = {}
 
-    batch_size = cfg['dataset_params']['batch_size']
-    params = {'batch_size': batch_size,
-                'shuffle': True,
-                'pin_memory':True,
-                'num_workers': 4}
-    training_set = Dataset(image_IDs, mask_IDs, cfg, is_patch=True)
-    training_generator = data.DataLoader(training_set, **params)
+    train_v1_files = open('dataloader/casiav1_train.txt', 'r').read().split('\n')
+    mask_v1_files = open('dataloader/casiav1_mask.txt', 'r').read().split('\n')
+    train_v2_files = open('dataloader/casiav2_train.txt', 'r').read().split('\n')
+    mask_v2_files = open('dataloader/casiav2_mask.txt', 'r').read().split('\n')
 
-    return training_generator
 
-def val_generator(cfg):
-    val_image_IDs = open('dataloader/test_images.txt', 'r').read().split('\n')
-    val_mask_IDs = open('dataloader/test_masks.txt', 'r').read().split('\n')
+    rand1 = np.random.choice(len(train_v1_files), 50, replace=False).tolist()
+    count = 0
+    test_count = 0
+    for i in range(len(train_v1_files)):
+        if i in rand1:
+            test_IDs[test_count] = os.path.join(train_v1, train_v1_files[i])
+            mask_test_IDs[test_count] = os.path.join(mask_v1, mask_v1_files[i])
+            test_count += 1
+        else:
+            train_IDs[count] = os.path.join(train_v1, train_v1_files[i])
+            mask_IDs[count] = os.path.join(mask_v1, mask_v1_files[i])
+            count += 1
 
-    batch_size = cfg['dataset_params']['batch_size']
-    params = {'batch_size': batch_size,
-                  'shuffle': False,
-                  'pin_memory':True,
-                  'num_workers': 4}
-    val_set = Dataset(val_image_IDs, val_mask_IDs, cfg, is_patch = False)
-    validation_generator = data.DataLoader(val_set, **params)
-    return validation_generator
+    rand2 = np.random.choice(len(train_v2_files), 500, replace= False).tolist()
+    for i in range(len(train_v2_files)):
+        if i in rand2:
+            test_IDs[test_count] = os.path.join(train_v2, train_v2_files[i])
+            mask_test_IDs[test_count] = os.path.join(mask_v2, mask_v2_files[i])
+            test_count += 1
+        else:
+            train_IDs[count] = os.path.join(train_v2, train_v2_files[i])
+            mask_IDs[count] = os.path.join(mask_v2, mask_v2_files[i])
+            count += 1
+    
+    
+    return train_IDs, mask_IDs, test_IDs, mask_test_IDs
+
+class generator():
+    def __init__(self,cfg):
+        self.cfg = cfg
+        self.train_IDs, self.mask_IDs, self.test_IDs, self.mask_test_IDs = get_file_names(cfg)
+
+    def get_train_generator(self):
+        
+        batch_size = self.cfg['dataset_params']['batch_size']
+        params = {'batch_size': batch_size,
+                    'shuffle': True,
+                    'pin_memory':True,
+                    'num_workers': 4}
+        training_set = Dataset(self.train_IDs, self.mask_IDs, self.cfg, is_patch=True)
+        training_generator = data.DataLoader(training_set, **params)
+
+        return training_generator
+
+    def get_val_generator(self):
+
+        batch_size = self.cfg['dataset_params']['batch_size']
+        params = {'batch_size': batch_size,
+                    'shuffle': False,
+                    'pin_memory':True,
+                    'num_workers': 4}
+        val_set = Dataset(self.test_IDs, self.mask_test_IDs, self.cfg, is_patch = False)
+        validation_generator = data.DataLoader(val_set, **params)
+        return validation_generator
 

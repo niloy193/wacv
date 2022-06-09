@@ -25,10 +25,11 @@ with torch.no_grad():
 
 from model.model import ConSegNet
 model = ConSegNet(cfg, in_planes).cuda()
-from dataloader.loader import train_generator, val_generator
+from dataloader.loader import generator
 
-training_generator = train_generator(cfg)
-validation_generator = val_generator(cfg)
+gnr = generator(cfg)
+training_generator = gnr.get_train_generator()
+validation_generator = gnr.get_val_generator()
 
 
 use_cuda = torch.cuda.is_available()
@@ -100,6 +101,7 @@ for epoch in range(cfg['model_params']['epoch']):
         train_inter.update(intr)
         train_union.update(uni)
         
+        
     train_softmax = train_sloss.avg
 
     if cfg['global_params']['with_con'] == True:
@@ -125,7 +127,9 @@ for epoch in range(cfg['model_params']['epoch']):
             val_union.update(uni)
             _, pred = torch.max(pred, 1)
             val_pred.append(pred.view(-1).cpu().numpy().tolist())
-            val_tar.append(tar.view(-1).cpu().numpy().tolist())
+            val_tar.append(tar.view(-1).long().cpu().numpy().tolist())
+            
+
         
         val_pred = list(itertools.chain(*val_pred))
         val_tar = list(itertools.chain(*val_tar))
@@ -149,7 +153,8 @@ for epoch in range(cfg['model_params']['epoch']):
             'Train IoU':train_IoU, 'Validation IoU': val_IoU, 'Validation AUC': val_auc, 
             'Max Validaton_AUC': max_val_auc}
         
-        logs = {'epoch': epoch, 'Softmax Loss':train_softmax,
+        else:
+            logs = {'epoch': epoch, 'Softmax Loss':train_softmax,
             'Train IoU':train_IoU, 'Validation IoU': val_IoU, 'Validation AUC': val_auc, 
             'Max Validaton_AUC': max_val_auc}
 
