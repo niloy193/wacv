@@ -143,8 +143,8 @@ def compute_covariance(input_data):
     return c
 
 class Get_Patch():
-    def __init__(self):
-        pass
+    def __init__(self,cfg):
+        self.cfg = cfg
     def check_edge(self, H, W, h, w, p_len):
         return  (H - h > p_len)  and (W - w > p_len)
 
@@ -179,8 +179,12 @@ class Get_Patch():
             rand_ind = torch.randint(0, len(indices),  (1,)).item()
             h, w = indices[rand_ind][0].item(), indices[rand_ind][1].item()
             t_count += 1
-            if self.check_edge(H, W, h, w, p_len) and self.check_all_tampered(mask, h, w, p_len):
-                break
+            if self.cfg['dataset_params']['take_tampered_boundary'] == True:
+                if self.check_edge(H, W, h, w, p_len):
+                    break
+            else:
+                if self.check_edge(H, W, h, w, p_len) and self.check_all_tampered(mask, h, w, p_len):
+                    break
             if t_count >= threshold:
                 return torch.zeros_like(mask)
             

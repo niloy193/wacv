@@ -1,13 +1,13 @@
 global_params:
     with_srm: True
-    with_con: False 
+    with_con: True
     
 model_params:
     encoder: 'resnet50'
     aspp_outplane: 512
     num_class: 2
     optimizer: 'adam'
-    lr: 0.00005
+    lr: 0.0001
     epoch: 100
 
 dataset_params:
@@ -15,11 +15,12 @@ dataset_params:
     mask_dir_v1: '/home/agency/xai/forgery/CASIA1/Gt/Sp'
     images_dir_v2: '/home/agency/xai/forgery/CASIA2/Tp'
     mask_dir_v2: '/home/agency/xai/forgery/CASIA2/Gt'
-    batch_size: 4
+    batch_size: 2
     im_size: 224
     patch_size: 14
-    s_patch_len: 10
-    p_patch_len: 10
+    s_patch_len: 20
+    p_patch_len: 20
+    take_tampered_boundary: False
     mean: [0.485, 0.456, 0.406] 
     std: [0.229, 0.224, 0.225]
     imbalance_weight: [0.0892, 0.9108]  #synthetic_imbalance [0.0484,0.9516]

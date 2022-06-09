@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.utils import Get_Patch
 import os
-
+import math
 class Dataset(data.Dataset):
     def __init__(self, list_IDs, labels, cfg, is_patch = True):
         'Initialization'
@@ -40,7 +40,7 @@ class Dataset(data.Dataset):
         pristine_patch_len = self.cfg['dataset_params']['p_patch_len']
         patch_size = self.cfg['dataset_params']['patch_size']
         if (self.is_patch == True) and (self.cfg['global_params']['with_con'] == True):
-            gp = Get_Patch()
+            gp = Get_Patch(self.cfg)
             ps = torch.empty((spliced_patch_len,mask.shape[0],mask.shape[1]))
             for i in range(spliced_patch_len):
                 m = gp.get_spliced_patch(mask, patch_size, 5)
@@ -68,9 +68,8 @@ def get_file_names(cfg):
     mask_v1_files = open('dataloader/casiav1_mask.txt', 'r').read().split('\n')
     train_v2_files = open('dataloader/casiav2_train.txt', 'r').read().split('\n')
     mask_v2_files = open('dataloader/casiav2_mask.txt', 'r').read().split('\n')
-
-
-    rand1 = np.random.choice(len(train_v1_files), 50, replace=False).tolist()
+    
+    rand1 = np.random.choice(len(train_v1_files), math.ceil(len(train_v1_files)*0.1), replace=False).tolist()
     count = 0
     test_count = 0
     for i in range(len(train_v1_files)):
@@ -83,7 +82,7 @@ def get_file_names(cfg):
             mask_IDs[count] = os.path.join(mask_v1, mask_v1_files[i])
             count += 1
 
-    rand2 = np.random.choice(len(train_v2_files), 500, replace= False).tolist()
+    rand2 = np.random.choice(len(train_v2_files), math.ceil(len(train_v2_files)*0.1), replace= False).tolist()
     for i in range(len(train_v2_files)):
         if i in rand2:
             test_IDs[test_count] = os.path.join(train_v2, train_v2_files[i])
