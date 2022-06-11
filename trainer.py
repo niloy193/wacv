@@ -28,6 +28,14 @@ device = torch.device("cuda:0" if use_cuda else "cpu")
 
 from model.model import ConSegNet
 model = ConSegNet(cfg, in_planes).to(device)
+pretrained_params = []
+other_params = []
+for key in list(model.named_parameters()):
+    if len(key[0].split('encoder.')) == 2:
+        pretrained_params.append(key[1])
+    else:
+        other_params.append(key[1])
+
 
 if cfg['dataset_params']['dataset_name'] == 'caisa':
     from dataloader.loader import generator
@@ -41,9 +49,13 @@ validation_generator = gnr.get_val_generator()
 
 
 if cfg['model_params']['optimizer'] == 'sgd':
-    optimizer = optim.SGD(model.parameters(), lr = cfg['model_params']['lr'], weight_decay = 1e-4, momentum = 0.9)
+    optimizer = optim.SGD([{'params': pretrained_params, 'lr' : 1e-6}, 
+            {'params': other_params}], 
+            lr = cfg['model_params']['lr'], weight_decay = 1e-4, momentum = 0.9)
 else:
-    optimizer = optim.Adam(model.parameters(), lr = cfg['model_params']['lr'] )
+    optimizer = optim.Adam([{'params': pretrained_params, 'lr' : 1e-6}, 
+            {'params': other_params}], 
+            lr = cfg['model_params']['lr'])
 
 casia_imbalance_weight = torch.tensor(cfg['dataset_params']['imbalance_weight']).to(device)
 criterion = nn.CrossEntropyLoss(weight = casia_imbalance_weight)
