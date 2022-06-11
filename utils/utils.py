@@ -192,7 +192,7 @@ class Get_Patch():
         p[h:h+p_len, w:w+p_len] = torch.ones(p_len, p_len)
         return p
     
-def patch_contrast(pos, neg, device, temperature = 0.1):
+def patch_contrast(pos, neg, device, temperature):
     B = pos.shape[0]
     cat = torch.concat((pos, neg), dim=1)
     
@@ -243,7 +243,7 @@ class memory_bank():
         self.memory = torch.cat((feat, self.memory), dim=0)[:-batch_size]
     
 
-def contrast_loss (feat, mem, temperature = 0.6):
+def contrast_loss (feat, mem, device, temperature = 0.6):
     mem_cardinality = mem.shape[0]
 
     feat_labels = torch.arange(0,feat.shape[1],1).contiguous().view(-1,1)
@@ -255,12 +255,12 @@ def contrast_loss (feat, mem, temperature = 0.6):
     feat = torch.cat(torch.unbind(feat, dim=1), dim=0)
     mem = torch.cat(torch.unbind(mem, dim=1), dim=0)
 
-    # feat_mask = torch.eq(feat_labels, feat_labels.T).float().cuda()
-    mem_mask = torch.eq(feat_labels, mem_labels.T).float().cuda()
+    # feat_mask = torch.eq(feat_labels, feat_labels.T).float().to(device)
+    mem_mask = torch.eq(feat_labels, mem_labels.T).float().to(device)
 
 
-    # feat_mask_neg = torch.add(torch.negative(feat_mask),1).cuda()
-    mem_mask_neg = torch.add(torch.negative(mem_mask),1).cuda()
+    # feat_mask_neg = torch.add(torch.negative(feat_mask),1).to(device)
+    mem_mask_neg = torch.add(torch.negative(mem_mask),1).to(device)
 
     feat_logits =  torch.div(torch.matmul(feat, feat.T),temperature)
     mem_logits = torch.div(torch.matmul(feat, mem.T),temperature)

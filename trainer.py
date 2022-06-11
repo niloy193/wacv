@@ -23,17 +23,22 @@ with torch.no_grad():
     in_planes = test_model(torch.randn((2,3,128,128)))[0].shape[1]
     del test_model
 
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda:0" if use_cuda else "cpu")
+
 from model.model import ConSegNet
-model = ConSegNet(cfg, in_planes).cuda()
-from dataloader.loader import generator
+model = ConSegNet(cfg, in_planes).to(device)
+
+if cfg['dataset_params']['dataset_name'] == 'caisa':
+    from dataloader.loader import generator
+elif cfg['dataset_params']['dataset_name'] == 'imd_2020':
+    from dataloader.loader_imd import generator
+
 
 gnr = generator(cfg)
 training_generator = gnr.get_train_generator()
 validation_generator = gnr.get_val_generator()
 
-
-use_cuda = torch.cuda.is_available()
-device = torch.device("cuda:0" if use_cuda else "cpu")
 
 if cfg['model_params']['optimizer'] == 'sgd':
     optimizer = optim.SGD(model.parameters(), lr = cfg['model_params']['lr'], weight_decay = 1e-4, momentum = 0.9)
@@ -77,7 +82,8 @@ for epoch in range(cfg['model_params']['epoch']):
             cfeature_neg = utils.calfeaturevectors(feat, pp.detach())
             cfeature_neg = F.normalize(cfeature_neg, dim = -1)
 
-            c_loss = utils.patch_contrast(cfeature_pos, cfeature_neg, device)
+            contrast_temperature = cfg['dataset_params']['contrast_temperature']
+            c_loss = utils.patch_contrast(cfeature_pos, cfeature_neg, device, contrast_temperature)
             c_loss = c_loss.mean(dim=-1)
             c_loss = c_loss.mean()
             loss = criterion(pred, tar.long().detach()) 
