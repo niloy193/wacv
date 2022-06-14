@@ -28,6 +28,7 @@ device = torch.device("cuda:0" if use_cuda else "cpu")
 
 from model.model import ConSegNet
 model = ConSegNet(cfg, in_planes).to(device)
+
 pretrained_params = []
 other_params = []
 for key in list(model.named_parameters()):
@@ -37,7 +38,7 @@ for key in list(model.named_parameters()):
         other_params.append(key[1])
 
 
-if cfg['dataset_params']['dataset_name'] == 'caisa':
+if cfg['dataset_params']['dataset_name'] == 'casia':
     from dataloader.loader import generator
 elif cfg['dataset_params']['dataset_name'] == 'imd_2020':
     from dataloader.loader_imd import generator
