@@ -82,8 +82,8 @@ for epoch in range(cfg['model_params']['epoch']):
     train_union = AverageMeter()
     train_sloss = AverageMeter()
     train_closs = AverageMeter()
-    if epoch > 20:
-        scheduler.step()
+    
+    
 
     for sample in tqdm(training_generator):
         model.train()
@@ -132,6 +132,8 @@ for epoch in range(cfg['model_params']['epoch']):
         train_inter.update(intr)
         train_union.update(uni)
         
+    if epoch>20:
+        scheduler.step()    
         
     train_softmax = train_sloss.avg
 
