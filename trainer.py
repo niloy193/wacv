@@ -50,11 +50,11 @@ validation_generator = gnr.get_val_generator()
 
 
 if cfg['model_params']['optimizer'] == 'sgd':
-    optimizer = optim.SGD([{'params': pretrained_params, 'lr' : 1e-6}, 
+    optimizer = optim.SGD([{'params': pretrained_params, 'lr' : cfg['model_params']['lr']/10}, 
             {'params': other_params}], 
             lr = cfg['model_params']['lr'], weight_decay = 1e-4, momentum = 0.9)
 else:
-    optimizer = optim.Adam([{'params': pretrained_params, 'lr' : 1e-6}, 
+    optimizer = optim.Adam([{'params': pretrained_params, 'lr' : cfg['model_params']['lr']/10}, 
             {'params': other_params}], 
             lr = cfg['model_params']['lr'])
 
