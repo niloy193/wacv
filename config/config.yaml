@@ -9,6 +9,7 @@ model_params:
     optimizer: 'adam'
     lr: 0.0001
     epoch: 100
+    lr_reduction_pretrained: True
 
 dataset_params:
     dataset_name: 'casia' #imd_2020 or casia

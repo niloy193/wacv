@@ -29,15 +29,6 @@ device = torch.device("cuda:0" if use_cuda else "cpu")
 from model.model import ConSegNet
 model = ConSegNet(cfg, in_planes).to(device)
 
-pretrained_params = []
-other_params = []
-for key in list(model.named_parameters()):
-    if len(key[0].split('encoder.')) == 2:
-        pretrained_params.append(key[1])
-    else:
-        other_params.append(key[1])
-
-
 if cfg['dataset_params']['dataset_name'] == 'casia':
     from dataloader.loader import generator
 elif cfg['dataset_params']['dataset_name'] == 'imd_2020':
@@ -49,14 +40,31 @@ training_generator = gnr.get_train_generator()
 validation_generator = gnr.get_val_generator()
 
 
-if cfg['model_params']['optimizer'] == 'sgd':
-    optimizer = optim.SGD([{'params': pretrained_params, 'lr' : cfg['model_params']['lr']/10}, 
-            {'params': other_params}], 
-            lr = cfg['model_params']['lr'], weight_decay = 1e-4, momentum = 0.9)
+if cfg['model_params']['lr_reduction_pretrained'] == True:
+    pretrained_params = []
+    other_params = []
+    for key in list(model.named_parameters()):
+        if len(key[0].split('encoder.')) == 2:
+            pretrained_params.append(key[1])
+        else:
+            other_params.append(key[1])
+
+    if cfg['model_params']['optimizer'] == 'sgd':
+        optimizer = optim.SGD([{'params': pretrained_params, 'lr' : cfg['model_params']['lr']/5}, 
+                {'params': other_params}], 
+                lr = cfg['model_params']['lr'], weight_decay = 1e-4, momentum = 0.9)
+    else:
+        optimizer = optim.Adam([{'params': pretrained_params, 'lr' : cfg['model_params']['lr']/5}, 
+                {'params': other_params}], 
+                lr = cfg['model_params']['lr'])
 else:
-    optimizer = optim.Adam([{'params': pretrained_params, 'lr' : cfg['model_params']['lr']/10}, 
-            {'params': other_params}], 
-            lr = cfg['model_params']['lr'])
+    if cfg['model_params']['optimizer'] == 'sgd':
+        optimizer = optim.SGD(model.parameters(), 
+                lr = cfg['model_params']['lr'], weight_decay = 1e-4, momentum = 0.9)
+    else:
+        optimizer = optim.Adam(model.parameters(), 
+                lr = cfg['model_params']['lr'])
+
 
 casia_imbalance_weight = torch.tensor(cfg['dataset_params']['imbalance_weight']).to(device)
 criterion = nn.CrossEntropyLoss(weight = casia_imbalance_weight)
