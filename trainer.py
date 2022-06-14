@@ -12,6 +12,7 @@ from sklearn import metrics
 import datetime
 import timm
 import yaml
+from torch.optim.lr_scheduler import StepLR
 
 set_random_seed(1441)
 
@@ -65,6 +66,7 @@ else:
         optimizer = optim.Adam(model.parameters(), 
                 lr = cfg['model_params']['lr'])
 
+scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 
 casia_imbalance_weight = torch.tensor(cfg['dataset_params']['imbalance_weight']).to(device)
 criterion = nn.CrossEntropyLoss(weight = casia_imbalance_weight)
@@ -80,6 +82,8 @@ for epoch in range(cfg['model_params']['epoch']):
     train_union = AverageMeter()
     train_sloss = AverageMeter()
     train_closs = AverageMeter()
+    if epoch > 20:
+        scheduler.step()
 
     for sample in tqdm(training_generator):
         model.train()
