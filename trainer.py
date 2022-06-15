@@ -14,7 +14,7 @@ import timm
 import yaml
 from torch.optim.lr_scheduler import StepLR
 
-set_random_seed(1441)
+set_random_seed(3214)
 
 with open('config/config.yaml', 'r') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)

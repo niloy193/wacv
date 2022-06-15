@@ -18,7 +18,7 @@ dataset_params:
     images_dir_v2: '/home/agency/xai/forgery/CASIA2/Tp'
     mask_dir_v2: '/home/agency/xai/forgery/CASIA2/Gt'
     imd_2020_dir: '/home/agency/xai/forgery/IMD2020'
-    batch_size: 2
+    batch_size: 8
     im_size: 224
     patch_size: 14
     s_patch_len: 10
