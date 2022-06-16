@@ -14,7 +14,8 @@ import timm
 import yaml
 from torch.optim.lr_scheduler import StepLR
 
-set_random_seed(3214)
+# set_random_seed(3214)
+set_random_seed(1221)
 
 with open('config/config.yaml', 'r') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
@@ -158,9 +159,10 @@ for epoch in range(cfg['model_params']['epoch']):
             intr, uni = batch_intersection_union(pred, tar, num_class = cfg['model_params']['num_class'])
             val_inter.update(intr)
             val_union.update(uni)
-            _, pred = torch.max(pred, 1)
-            val_pred.append(pred.view(-1).cpu().numpy().tolist())
-            val_tar.append(tar.view(-1).long().cpu().numpy().tolist())
+            # _, pred = torch.max(pred, 1)
+            y_score = F.softmax(pred, dim=1)[:,1,:,:]
+            val_pred.append(y_score.contiguous().view(-1).cpu().numpy().tolist())
+            val_tar.append(tar.contiguous().view(-1).long().cpu().numpy().tolist())
             
 
         
@@ -168,6 +170,7 @@ for epoch in range(cfg['model_params']['epoch']):
         val_tar = list(itertools.chain(*val_tar))
         
         fpr, tpr, thresholds = metrics.roc_curve(np.array(val_tar), np.array(val_pred), pos_label=1)
+        # val_auc = metrics.roc_auc_score(np.array(val_tar), np.array(val_pred))
         val_auc = metrics.auc(fpr, tpr)
 
         val_pred = []
