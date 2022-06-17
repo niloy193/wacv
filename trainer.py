@@ -2,7 +2,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import torch
-import segmentation_models_pytorch as smp
 from tqdm import tqdm
 import utils.utils as utils
 import torch.optim as optim
@@ -14,8 +13,9 @@ import timm
 import yaml
 from torch.optim.lr_scheduler import StepLR
 
-# set_random_seed(3214)
-set_random_seed(1221)
+
+SEED= 3214
+set_random_seed(SEED)
 
 with open('config/config.yaml', 'r') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
@@ -25,16 +25,33 @@ with torch.no_grad():
     in_planes = test_model(torch.randn((2,3,128,128)))[0].shape[1]
     del test_model
 
-use_cuda = torch.cuda.is_available()
-device = torch.device("cuda:0" if use_cuda else "cpu")
 
-from model.model import ConSegNet
-model = ConSegNet(cfg, in_planes).to(device)
 
 if cfg['dataset_params']['dataset_name'] == 'casia':
     from dataloader.loader import generator
 elif cfg['dataset_params']['dataset_name'] == 'imd_2020':
     from dataloader.loader_imd import generator
+
+
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda:3" if use_cuda else "cpu")
+contrst = "without_contrst-"
+pl= ""
+SEED = "-seed"+str(SEED)+"-"+"withscheduleLR"
+patch_size = ""
+
+if cfg['global_params']['with_con']:
+    contrst = "with_contrst-"
+    pl= "-patch-"+ str(cfg['dataset_params']['s_patch_len'])
+    patch_size = "-patch_size"+str(cfg['dataset_params']['patch_size'])
+
+bs=cfg['dataset_params']['batch_size']
+datas = cfg['dataset_params']['dataset_name']+"-"
+
+filename_log = datas+contrst+cfg['model_params']['encoder']+"-"+"batch"+str(bs)+pl+SEED+patch_size+'.txt'
+
+from model.model import ConSegNet
+model = ConSegNet(cfg, in_planes).to(device)
 
 
 gnr = generator(cfg)
@@ -73,7 +90,6 @@ casia_imbalance_weight = torch.tensor(cfg['dataset_params']['imbalance_weight'])
 criterion = nn.CrossEntropyLoss(weight = casia_imbalance_weight)
 
 now = datetime.datetime.now()
-filename_log = 'Results-'+str(now)+'.txt'
 
 max_val_auc = 0
 
@@ -152,6 +168,9 @@ for epoch in range(cfg['model_params']['epoch']):
         val_union = AverageMeter()
         val_pred = []
         val_tar = []
+        y_tt=[]
+        y_pp= []
+
         for img, tar in tqdm(validation_generator):
             img, tar = img.to(device), tar.to(device)
             pred, _ = model(img)
@@ -163,7 +182,16 @@ for epoch in range(cfg['model_params']['epoch']):
             y_score = F.softmax(pred, dim=1)[:,1,:,:]
             val_pred.append(y_score.contiguous().view(-1).cpu().numpy().tolist())
             val_tar.append(tar.contiguous().view(-1).long().cpu().numpy().tolist())
-            
+
+
+            y_tt.append(torch.flatten(tar))
+            y_pp.append( torch.flatten(torch.argmax(pred,dim=1)))
+
+
+        y_tt,y_pp= torch.cat(y_tt),torch.cat(y_pp)
+        AUC_scikit = metrics.roc_auc_score(y_tt.cpu().type(torch.IntTensor),y_pp.cpu())
+
+
 
         
         val_pred = list(itertools.chain(*val_pred))
@@ -176,8 +204,11 @@ for epoch in range(cfg['model_params']['epoch']):
         val_pred = []
         val_tar = []
 
-        if val_auc > max_val_auc:
-            max_val_auc = val_auc
+        # if val_auc > max_val_auc:
+        #     max_val_auc = val_auc
+
+        if AUC_scikit > max_val_auc:
+            max_val_auc = AUC_scikit
 
         val_IoU = val_inter.sum/(val_union.sum + 1e-10)
         val_IoU = val_IoU.tolist()
@@ -187,14 +218,13 @@ for epoch in range(cfg['model_params']['epoch']):
         if cfg['global_params']['with_con'] == True:
             logs = {'epoch': epoch, 'Softmax Loss':train_softmax, 'Contrastive Loss':train_contrast,
             'Train IoU':train_IoU, 'Validation IoU': val_IoU, 'Validation AUC': val_auc, 
-            'Max Validaton_AUC': max_val_auc}
+            'Max Validaton_AUC': max_val_auc,  'Validation scikit AUC':AUC_scikit}
         
         else:
             logs = {'epoch': epoch, 'Softmax Loss':train_softmax,
             'Train IoU':train_IoU, 'Validation IoU': val_IoU, 'Validation AUC': val_auc, 
-            'Max Validaton_AUC': max_val_auc}
+            'Max Validaton_AUC': max_val_auc, 'Validation scikit AUC':AUC_scikit}
 
         write_logger(filename_log, cfg, **logs)
-        
-        
-           
+
+        print(filename_log)
