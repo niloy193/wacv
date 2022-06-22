@@ -1,6 +1,6 @@
 global_params:
     with_srm: True
-    with_con: False
+    with_con: True
     
 model_params:
     encoder: 'resnet50'
