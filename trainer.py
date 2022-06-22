@@ -13,6 +13,7 @@ import datetime
 import timm
 import yaml
 from torch.optim.lr_scheduler import StepLR
+import torchmetrics
 
 # set_random_seed(3214)
 set_random_seed(1221)
@@ -76,6 +77,10 @@ now = datetime.datetime.now()
 filename_log = 'Results-'+str(now)+'.txt'
 
 max_val_auc = 0
+max_val_iou = [0.0, 0.0]
+from torch.utils.tensorboard import SummaryWriter
+
+tb = SummaryWriter()
 
 for epoch in range(cfg['model_params']['epoch']):
     train_loss = AverageMeter()
@@ -113,7 +118,7 @@ for epoch in range(cfg['model_params']['epoch']):
             c_loss = c_loss.mean(dim=-1)
             c_loss = c_loss.mean()
             loss = criterion(pred, tar.long().detach()) 
-            total_loss = loss + c_loss
+            total_loss = loss + cfg['model_params']['con_alpha']*c_loss
         else:
             loss = criterion(pred, tar.long().detach()) 
             total_loss = loss 
@@ -133,8 +138,9 @@ for epoch in range(cfg['model_params']['epoch']):
         train_inter.update(intr)
         train_union.update(uni)
         
-    if epoch>20:
-        scheduler.step()    
+        
+    # if epoch>20:
+    #     scheduler.step()    
         
     train_softmax = train_sloss.avg
 
@@ -152,6 +158,7 @@ for epoch in range(cfg['model_params']['epoch']):
         val_union = AverageMeter()
         val_pred = []
         val_tar = []
+        auc = []
         for img, tar in tqdm(validation_generator):
             img, tar = img.to(device), tar.to(device)
             pred, _ = model(img)
@@ -161,17 +168,21 @@ for epoch in range(cfg['model_params']['epoch']):
             val_union.update(uni)
             # _, pred = torch.max(pred, 1)
             y_score = F.softmax(pred, dim=1)[:,1,:,:]
-            val_pred.append(y_score.contiguous().view(-1).cpu().numpy().tolist())
-            val_tar.append(tar.contiguous().view(-1).long().cpu().numpy().tolist())
+            # val_pred.extend(y_score.contiguous().view(-1).cpu().numpy().tolist())
+            # val_tar.extend(tar.contiguous().view(-1).long().cpu().numpy().tolist())
+            for yy_true, yy_pred in zip(tar.cpu().numpy(), y_score.cpu().numpy()) :
+                val_auc = metrics.roc_auc_score(yy_true.ravel(), yy_pred.ravel(), average = None)
+                auc.append(val_auc)
             
 
         
-        val_pred = list(itertools.chain(*val_pred))
-        val_tar = list(itertools.chain(*val_tar))
-        
-        fpr, tpr, thresholds = metrics.roc_curve(np.array(val_tar), np.array(val_pred), pos_label=1)
-        # val_auc = metrics.roc_auc_score(np.array(val_tar), np.array(val_pred))
-        val_auc = metrics.auc(fpr, tpr)
+        # val_pred = list(itertools.chain(*val_pred))
+        # val_tar = list(itertools.chain(*val_tar))
+
+        # val_auc = metrics.roc_auc_score(val_tar, val_pred, average = None)
+        val_auc = np.mean(auc)
+        # fpr, tpr, thresholds = metrics.roc_curve(np.array(val_tar), np.array(val_pred), pos_label=1)
+        # val_auc = metrics.auc(fpr, tpr)
 
         val_pred = []
         val_tar = []
@@ -184,16 +195,20 @@ for epoch in range(cfg['model_params']['epoch']):
         val_mIoU = np.mean(val_IoU)
         val_mIoU = val_mIoU.tolist()
 
+        if val_IoU[1] > max_val_iou[1]:
+            max_val_iou = val_IoU
+
         if cfg['global_params']['with_con'] == True:
             logs = {'epoch': epoch, 'Softmax Loss':train_softmax, 'Contrastive Loss':train_contrast,
             'Train IoU':train_IoU, 'Validation IoU': val_IoU, 'Validation AUC': val_auc, 
-            'Max Validaton_AUC': max_val_auc}
+            'Max Validaton_AUC': max_val_auc, "Max IoU Tampered": max_val_iou}
         
         else:
             logs = {'epoch': epoch, 'Softmax Loss':train_softmax,
             'Train IoU':train_IoU, 'Validation IoU': val_IoU, 'Validation AUC': val_auc, 
-            'Max Validaton_AUC': max_val_auc}
+            'Max Validaton_AUC': max_val_auc, "Max IoU Tampered": max_val_iou}
 
+        tb.add_scalar("auc", val_auc, epoch+1)
         write_logger(filename_log, cfg, **logs)
         
         
