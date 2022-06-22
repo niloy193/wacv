@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import torch
-import segmentation_models_pytorch as smp
+#import segmentation_models_pytorch as smp
 from tqdm import tqdm
 import utils.utils as utils
 import torch.optim as optim
@@ -12,35 +12,37 @@ from sklearn import metrics
 import datetime
 import timm
 import yaml
+import random
+from model.model import ConSegNet
 from torch.optim.lr_scheduler import StepLR
 import torchmetrics
 
-# set_random_seed(3214)
 set_random_seed(1221)
 
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda" if use_cuda else "cpu")
 with open('config/config.yaml', 'r') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
+
+now = datetime.datetime.now()
+filename_log = 'Results-'+str(now)+'.txt'
 
 with torch.no_grad():
     test_model = timm.create_model(cfg['model_params']['encoder'], pretrained= False, features_only=True, out_indices=[4])
     in_planes = test_model(torch.randn((2,3,128,128)))[0].shape[1]
     del test_model
 
-use_cuda = torch.cuda.is_available()
-device = torch.device("cuda:0" if use_cuda else "cpu")
-
-from model.model import ConSegNet
-model = ConSegNet(cfg, in_planes).to(device)
 
 if cfg['dataset_params']['dataset_name'] == 'casia':
     from dataloader.loader import generator
 elif cfg['dataset_params']['dataset_name'] == 'imd_2020':
     from dataloader.loader_imd import generator
 
-
 gnr = generator(cfg)
 training_generator = gnr.get_train_generator()
 validation_generator = gnr.get_val_generator()
+
+model = ConSegNet(cfg, in_planes).to(device)
 
 
 if cfg['model_params']['lr_reduction_pretrained'] == True:
@@ -70,17 +72,20 @@ else:
 
 scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 
+
+
+
 casia_imbalance_weight = torch.tensor(cfg['dataset_params']['imbalance_weight']).to(device)
 criterion = nn.CrossEntropyLoss(weight = casia_imbalance_weight)
 
-now = datetime.datetime.now()
-filename_log = 'Results-'+str(now)+'.txt'
+
 
 max_val_auc = 0
 max_val_iou = [0.0, 0.0]
 from torch.utils.tensorboard import SummaryWriter
 
 tb = SummaryWriter()
+
 
 for epoch in range(cfg['model_params']['epoch']):
     train_loss = AverageMeter()
@@ -171,8 +176,9 @@ for epoch in range(cfg['model_params']['epoch']):
             # val_pred.extend(y_score.contiguous().view(-1).cpu().numpy().tolist())
             # val_tar.extend(tar.contiguous().view(-1).long().cpu().numpy().tolist())
             for yy_true, yy_pred in zip(tar.cpu().numpy(), y_score.cpu().numpy()) :
-                val_auc = metrics.roc_auc_score(yy_true.ravel(), yy_pred.ravel(), average = None)
-                auc.append(val_auc)
+                this = metrics.roc_auc_score(yy_true.ravel(), yy_pred.ravel(), average = None)
+                that = metrics.roc_auc_score(yy_true.ravel(), (1-yy_pred).ravel(), average = None)
+                auc.append(this)
             
 
         
@@ -210,6 +216,8 @@ for epoch in range(cfg['model_params']['epoch']):
 
         tb.add_scalar("auc", val_auc, epoch+1)
         write_logger(filename_log, cfg, **logs)
+
+
         
         
            
