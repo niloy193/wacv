@@ -21,11 +21,8 @@ dataset_params:
     imd_2020_dir: '/home/agency/xai/forgery/IMD2020'
     batch_size: 4
     im_size: 224
-    patch_size: 32
-    s_patch_len: 32
-    p_patch_len: 32
-    take_tampered_boundary: True
-    contrast_temperature: 0.1
+    patch_size: 8
+    contrast_temperature: 0.6
     mean: [0.485, 0.456, 0.406] 
     std: [0.229, 0.224, 0.225]
     imbalance_weight: [0.0892, 0.9108]  #synthetic_imbalance [0.0484,0.9516]
