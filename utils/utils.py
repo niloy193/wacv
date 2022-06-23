@@ -180,7 +180,7 @@ class Get_Patch():
             h, w = indices[rand_ind][0].item(), indices[rand_ind][1].item()
             t_count += 1
             if self.cfg['dataset_params']['take_tampered_boundary'] == True:
-                if self.check_edge(H, W, h, w, p_len):
+                if self.check_edge(H, W, h, w, p_len) and not self.check_all_tampered(mask, h, w, p_len):
                     break
             else:
                 if self.check_edge(H, W, h, w, p_len) and self.check_all_tampered(mask, h, w, p_len):
@@ -281,4 +281,36 @@ def contrast_loss (feat, mem, device, temperature = 0.6):
     loss_matrix = torch.mul(loss_matrix , mem_mask)
     loss = torch.sum(loss_matrix, dim=-1)
     loss = torch.div(loss, mem_cardinality)
+    return loss
+
+def square_patch_contrast_loss(feat, mask, device, temperature = 0.6):
+    #feat shape should be (Batch, Total_Patch_number, Feature_dimension)
+    #mask should be (Batch, H, W)
+
+    mem_mask = torch.eq(mask, mask.transpose(1,2)).float()
+    mem_mask_neg = torch.add(torch.negative(mem_mask),1)
+
+
+    feat_logits =  torch.div(torch.matmul(feat, feat.transpose(1,2)),temperature)
+    identity = torch.eye(feat_logits.shape[-1]).to(device)
+    neg_identity = torch.add(torch.negative(identity),1).detach()
+
+    feat_logits = torch.mul(feat_logits, neg_identity)
+
+    feat_logits_max, _ = torch.max(feat_logits, dim=1, keepdim=True)
+    feat_logits = feat_logits - feat_logits_max.detach()
+
+    feat_logits = torch.exp(feat_logits)
+
+    neg_sum = torch.sum(torch.mul(feat_logits, mem_mask_neg), dim=-1)
+    denominator = torch.add(feat_logits, neg_sum.unsqueeze(dim=-1))
+    division = torch.div(feat_logits, denominator+ 1e-18)
+        
+    loss_matrix = -torch.log(division+1e-18)
+    loss_matrix = torch.mul(loss_matrix , mem_mask)
+    loss_matrix = torch.mul(loss_matrix, neg_identity)
+    loss = torch.sum(loss_matrix, dim=-1)
+
+    loss = torch.div(loss, mem_mask.sum(dim=-1) -1 + 1e-18)
+
     return loss

@@ -103,29 +103,27 @@ for epoch in range(cfg['model_params']['epoch']):
 
         img = sample[0].to(device)
         tar = sample[1].to(device)
+        if cfg['global_params']['with_con'] == True:
+            ps = sample[2].to(device)
+            pp = sample[3].to(device)
 
         pred, feat = model(img)
+        print(pred.shape)
+        print(feat.shape)
         
         pred = F.interpolate(pred, img.shape[2:], mode= 'bilinear', align_corners = True)
         feat = F.interpolate(feat, img.shape[2:], mode= 'bilinear', align_corners = True)
 
-        p_len = cfg['dataset_params']['patch_size']
         if cfg['global_params']['with_con'] == True:
 
-            cfeature = F.avg_pool2d(feat, kernel_size = p_len, stride=p_len)
-            Ba, Ch,_,_ = cfeature.shape
-            cfeature = cfeature.view(Ba, Ch, -1)
-            cfeature = torch.transpose(cfeature,1,2)
-            cfeature = F.normalize(cfeature, dim = -1)
-
-            mask_con = tar.detach()
-            mask_con = F.avg_pool2d(mask_con, kernel_size = p_len, stride=p_len)
-            mask_con = (mask_con>0.5).int().float()
-            mask_con = mask_con.view(Ba,-1)
-            mask_con = mask_con.unsqueeze(dim=1)
+            cfeature_pos = utils.calfeaturevectors(feat, ps.detach())
+            print(cfeature_pos.shape)
+            cfeature_pos = F.normalize(cfeature_pos, dim = -1)
+            cfeature_neg = utils.calfeaturevectors(feat, pp.detach())
+            cfeature_neg = F.normalize(cfeature_neg, dim = -1)
 
             contrast_temperature = cfg['dataset_params']['contrast_temperature']
-            c_loss = utils.square_patch_contrast_loss(cfeature, mask_con, device, contrast_temperature)
+            c_loss = utils.patch_contrast(cfeature_pos, cfeature_neg, device, contrast_temperature)
             c_loss = c_loss.mean(dim=-1)
             c_loss = c_loss.mean()
             loss = criterion(pred, tar.long().detach()) 
@@ -221,7 +219,7 @@ for epoch in range(cfg['model_params']['epoch']):
             'Max Validaton_AUC': max_val_auc, "Max IoU Tampered": max_val_iou}
 
         # tb.add_scalar("auc", val_auc, epoch+1)
-        write_logger(filename_log, cfg, **logs)
+        # write_logger(filename_log, cfg, **logs)
 
 
         
