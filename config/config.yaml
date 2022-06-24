@@ -1,6 +1,6 @@
 global_params:
     with_srm: True
-    with_con: True
+    with_con: False
     
 model_params:
     encoder: 'resnet50'
@@ -22,7 +22,7 @@ dataset_params:
     batch_size: 4
     im_size: 224
     patch_size: 4
-    contrast_temperature: 0.6
+    contrast_temperature: 0.1
     mean: [0.485, 0.456, 0.406] 
     std: [0.229, 0.224, 0.225]
     imbalance_weight: [0.0892, 0.9108]  #synthetic_imbalance [0.0484,0.9516]

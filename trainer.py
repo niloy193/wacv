@@ -85,7 +85,7 @@ max_val_auc = 0
 max_val_iou = [0.0, 0.0]
 from torch.utils.tensorboard import SummaryWriter
 
-# tb = SummaryWriter()
+tb = SummaryWriter()
 
 
 for epoch in range(cfg['model_params']['epoch']):
@@ -150,7 +150,7 @@ for epoch in range(cfg['model_params']['epoch']):
         train_union.update(uni)
         
         
-    # if epoch>30:
+    # if epoch>20:
     #     scheduler.step()    
         
     train_softmax = train_sloss.avg
@@ -184,7 +184,7 @@ for epoch in range(cfg['model_params']['epoch']):
             for yy_true, yy_pred in zip(tar.cpu().numpy(), y_score.cpu().numpy()) :
                 this = metrics.roc_auc_score(yy_true.ravel(), yy_pred.ravel(), average = None)
                 that = metrics.roc_auc_score(yy_true.ravel(), (1-yy_pred).ravel(), average = None)
-                auc.append(this)
+                auc.append(max(this,that))
             
 
         
@@ -220,7 +220,7 @@ for epoch in range(cfg['model_params']['epoch']):
             'Train IoU':train_IoU, 'Validation IoU': val_IoU, 'Validation AUC': val_auc, 
             'Max Validaton_AUC': max_val_auc, "Max IoU Tampered": max_val_iou}
 
-        # tb.add_scalar("auc", val_auc, epoch+1)
+        tb.add_scalar("auc", val_auc, epoch+1)
         write_logger(filename_log, cfg, **logs)
 
 
