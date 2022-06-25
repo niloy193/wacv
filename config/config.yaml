@@ -13,7 +13,7 @@ model_params:
     con_alpha: 1
 
 dataset_params:
-    dataset_name: 'casia' #imd_2020 or casia
+    dataset_name: 'imd_2020' #imd_2020 or casia
     images_dir_v1: '/home/agency/xai/forgery/CASIA1/CASIA1/Sp'
     mask_dir_v1: '/home/agency/xai/forgery/CASIA1/Gt/Sp'
     images_dir_v2: '/home/agency/xai/forgery/CASIA2/Tp'
