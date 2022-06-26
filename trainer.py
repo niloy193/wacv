@@ -1,3 +1,4 @@
+#trainer.py
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
@@ -184,7 +185,7 @@ for epoch in range(cfg['model_params']['epoch']):
             for yy_true, yy_pred in zip(tar.cpu().numpy(), y_score.cpu().numpy()) :
                 this = metrics.roc_auc_score(yy_true.ravel(), yy_pred.ravel(), average = None)
                 that = metrics.roc_auc_score(yy_true.ravel(), (1-yy_pred).ravel(), average = None)
-                auc.append(max(this,that))
+                auc.append(this)
             
 
         
